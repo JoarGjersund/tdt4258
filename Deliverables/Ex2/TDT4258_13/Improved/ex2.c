@@ -4,41 +4,49 @@
 #include "efm32gg.h"
 
 /*
- * TODO calculate the appropriate sample period for the sound wave(s) you 
+ * TODO calculate the appropriate sample period for the sound wave(s) you
  * want to generate. The core clock (which the timer clock is derived
  * from) runs at 14 MHz by default. Also remember that the timer counter
- * registers are 16 bits. 
+ * registers are 16 bits.
  */
 /*
- * The period between sound samples, in clock cycles 
+ * The period between sound samples, in clock cycles
  */
 #define TIMER_CLK_FREQUENCY 14000000	//counts per sec.
 #define SAMPLE_FREQUENCY 	44100	// samples per sec.
 #define SAMPLE_PERIOD		TIMER_CLK_FREQUENCY/SAMPLE_FREQUENCY	// counts per sample.
 
-/*
- * Declaration of peripheral setup functions 
- */
+
+//Declaration of Power Saving functions
+void RAMblock();
+void disableLFCLK();
+void sleepmode();
+void __WFI()	//Wait for Interrupt - Enter DeepSleep mode
+
+ //Declaration of peripheral setup functions
 void setupTimer(uint32_t period);
 void setupDAC();
 void setupNVIC();
 void setupGPIO();
 
+
 int main(void)
 {
+	// Call power saving functions
+	RAMblock();
+	disableLFCLK();
+	sleepmode();
 	/*
-	 * Call the peripheral setup functions 
+	 * Call the peripheral setup functions
 	 */
 	setupGPIO();
 	setupDAC();
 	setupTimer(SAMPLE_PERIOD);
 
-	setupNVIC();		// Enable interrupt handling 
+	setupNVIC();		// Enable interrupt handling
 
-	/*
-	 * TODO for higher energy efficiency, sleep while waiting for
-	 * interrupts instead of infinite loop for busy-waiting 
-	 */
+
+	__WFI();  // Wait for Interrupt
 
 	while (1) ;
 	return 0;
@@ -68,5 +76,5 @@ void setupNVIC()
  * LEUART0_IRQHandler LEUART1_IRQHandler LETIMER0_IRQHandler
  * PCNT0_IRQHandler PCNT1_IRQHandler PCNT2_IRQHandler RTC_IRQHandler
  * BURTC_IRQHandler CMU_IRQHandler VCMP_IRQHandler LCD_IRQHandler
- * MSC_IRQHandler AES_IRQHandler EBI_IRQHandler EMU_IRQHandler 
+ * MSC_IRQHandler AES_IRQHandler EBI_IRQHandler EMU_IRQHandler
  */

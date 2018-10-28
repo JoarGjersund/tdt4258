@@ -18,7 +18,7 @@ void setupGPIO(void)
 	 */
 	// Setup LEDs
 	*CMU_HFPERCLKEN0 |= CMU2_HFPERCLKEN0_GPIO;	// enable GPIO clock
-	*GPIO_PA_CTRL = 2;	// set high drive strength
+	*GPIO_PA_CTRL = 1;	// set Lowest drive strength
 	*GPIO_PA_MODEH = 0x55555555;	// set pins A8-15 as output
 	*GPIO_PA_DOUT = 0xfE00;	// turn off LEDs (LEDs are active low), but keep one led on for fun.
 
