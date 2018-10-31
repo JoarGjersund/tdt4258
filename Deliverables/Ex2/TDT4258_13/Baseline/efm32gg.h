@@ -1,9 +1,7 @@
 #include <stdint.h>
-
 #define SAMPLE_RATE 44100
 
 #define PI 3.14159265358979323846
-
 
 // GPIO
 
@@ -46,7 +44,6 @@
 #define GPIO_EXTIRISE  ((volatile uint32_t*)(GPIO_PA_BASE + 0x108))
 #define GPIO_EXTIFALL  ((volatile uint32_t*)(GPIO_PA_BASE + 0x10c))
 #define GPIO_IEN       ((volatile uint32_t*)(GPIO_PA_BASE + 0x110))
-#define GPIO_IF        ((volatile uint32_t*)(GPIO_PA_BASE + 0x114))
 #define GPIO_IFC       ((volatile uint32_t*)(GPIO_PA_BASE + 0x11c))
 
 // CMU
@@ -57,7 +54,6 @@
 #define CMU_HFCORECLKEN0 ((volatile uint32_t*)(CMU_BASE2 + 0x040))
 #define CMU_HFPERCLKEN0  ((volatile uint32_t*)(CMU_BASE2 + 0x044))
 #define CMU_CMD          ((volatile uint32_t*)(CMU_BASE2 + 0x024))
-#define CMU_LFCLKSEL     ((volatile uint32_t*)(CMU_BASE2 + 0x028))
 
 #define CMU2_HFPERCLKEN0_DAC0   (1 << 17)
 #define CMU2_HFPERCLKEN0_PRS    (1 << 15)

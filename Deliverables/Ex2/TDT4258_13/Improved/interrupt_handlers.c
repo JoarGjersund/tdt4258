@@ -1,169 +1,83 @@
 #include <stdint.h>
-#include <stdbool.h>
 
+#include "timer.h"
+#include "gpio.h"
 #include "efm32gg.h"
-
-// SYNTH PARAMETERS:
-// these files are found in the testfile.h (included in the makefile)
-extern unsigned short startSound[33280];
-extern unsigned short homer[6328];
-extern unsigned short tada[13479];
-extern unsigned short sweep[4239];
-
-bool play = true; //indicates if a soundclip is currently beeing played. turns false when soundclip is finnished. also usefull for debouncing buttons.
-uint8_t sound2Play = 0; // number indicating which soundclip are played.
-uint16_t samplePointer = 0; // used for keeping track of sample.
-uint16_t samplePointerScaler = 0; //used by speed factor for the playback of samples at lower speed.
-
-// LED:
-uint16_t t, x = 0; // counters for LED debugging.
-
-//BUTTONS
-extern bool isButtonPushed(int btn); // found in gpio.c
+#include "sound.h"
+#include "dac.h"
+#include "main.h"
 
 
-
-// SYNTH FUNCTIONS. (SHOULD PROBABLY BE MOVED TO A SEPERATE FILE TOGETHER WITH THE GLOBAL SYNTH PARAMETERS)
-void initSound(uint8_t sound)
-{
-
-	if (!play) {
-		samplePointer = 0;
-		sound2Play = sound;
-		play = true;
-	}
-
-}
-
-int playSample(uint8_t sound, int sampleNumber) // play sample returns the index of the next sample.
-{
-
-	if (sound == 0 && play) {
-		if (sampleNumber >= sizeof(startSound) / sizeof(startSound[0])) {
-			play = false;
-			return 0;
-		} else {
-			*DAC0_CH0DATA = startSound[sampleNumber] * 1;
-			*DAC0_CH1DATA = startSound[sampleNumber] * 1;
-			samplePointerScaler++;
-			if (samplePointerScaler == 10) {
-				sampleNumber++;
-				samplePointerScaler = 0;
-			}
-			return sampleNumber;
-		}
-
-	}
-
-	if (sound == 1 && play) {
-		if (sampleNumber >= sizeof(tada) / sizeof(tada[0])) {
-			play = false;
-			return 0;
-		} else {
-			*DAC0_CH0DATA = tada[sampleNumber] * 1;
-			*DAC0_CH1DATA = tada[sampleNumber] * 1;
-			samplePointerScaler++;
-			if (samplePointerScaler == 5) {
-				sampleNumber++;
-				samplePointerScaler = 0;
-			}
-			return sampleNumber;
-		}
-
-	}
-
-	if (sound == 2 && play) {
-		if (sampleNumber >= sizeof(homer) / sizeof(homer[0])) {
-			play = false;
-			return 0;
-		} else {
-			*DAC0_CH0DATA = homer[sampleNumber] * 1;
-			*DAC0_CH1DATA = homer[sampleNumber] * 1;
-			samplePointerScaler++;
-			if (samplePointerScaler == 3) {
-				sampleNumber++;
-				samplePointerScaler = 0;
-			}
-			return sampleNumber;
-		}
-
-	}
-
-	if (sound == 3 && play) {
-		if (sampleNumber >= sizeof(sweep) / sizeof(sweep[0])) {
-			play = false;
-			return 0;
-		} else {
-			*DAC0_CH0DATA = sweep[sampleNumber] * 1;
-			*DAC0_CH1DATA = sweep[sampleNumber] * 1;
-			samplePointerScaler++;
-			if (samplePointerScaler == 3) {
-				sampleNumber++;
-				samplePointerScaler = 0;
-			}
-			return sampleNumber;
-		}
-
-	}
-
-	return 0;
-}
-
-
-
-
-
-/*
- * TIMER1 interrupt handler 
- */
 void __attribute__ ((interrupt)) TIMER1_IRQHandler()
 {
-	samplePointer = playSample(sound2Play, samplePointer); // feed samples to DAC. 
-
-	*TIMER1_IFC = 1;
-
-	
-	
-	/// LED ACTION FOR FUN AND DEBUGGING ////
-	x++;
-
-	if (x == 1500) {
-		*GPIO_PA_DOUT = *GPIO_PA_DOUT << 1;
-		x = 0;
-		t++;
-	}
-	if (t == 10) {
-		t = 0;
-		*GPIO_PA_DOUT = 0x0100;
-	}
-	//// END LED ACTION ///
-	
-	
+  *TIMER1_IFC = 1;
+  switch(play)
+  {
+    case SOUND: playSound(); break;
+    case MELODY: playMelody(); break;
+    case FREE: break;
+    case BUSY: break;
+  }
 }
 
-/*
- * GPIO even pin interrupt handler 
- */
+
 void __attribute__ ((interrupt)) GPIO_EVEN_IRQHandler()
 {
-	*GPIO_IFC = *GPIO_IF; //clear interrupt
+  *GPIO_IFC = *GPIO_IF;
+  if(play==FREE)
+  {
+    *SCR = 0;
 
-	if (isButtonPushed(0))
-		initSound(0);
-	if (isButtonPushed(2))
-		initSound(2);
+    button=filterButtons(getPressedButtons());
+    update_led(button);
+    if(button!=0)
+    {
+      switch (button) {
+        case 1: {generateSineWave(&wave, 440, SAMPLE_RATE); current_sound = &wave; break;}
+        case 3: {generateSquareWave(&wave, 440, SAMPLE_RATE); current_sound = &wave; break;}
+        case 5: {current_sound = &start; break;}
+        case 7: {current_sound = &sweep;}
+      }
+      n=0;
+      complete = 0;
+      play = SOUND;
+
+      setupDAC();
+      setupTimer(current_sound->sample_rate);
+    }
+  }
 }
 
-/*
- * GPIO odd pin interrupt handler 
- */
 void __attribute__ ((interrupt)) GPIO_ODD_IRQHandler()
 {
+  *GPIO_IFC = *GPIO_IF;
+  if(play==FREE)
+  {
+    *SCR = 0; 
 
-	*GPIO_IFC = *GPIO_IF; //clear interrupt
-
-	if (isButtonPushed(1))
-		initSound(1);
-	if (isButtonPushed(3))
-		initSound(3);
+    button=filterButtons(getPressedButtons());
+    update_led(button);
+    if(button<=6 && button>0)
+    {
+      switch (button) {
+        case 2: {generateSawtoothWave(&wave, 440, SAMPLE_RATE); current_sound = &wave; break;}
+        case 4: {current_sound = &homer; break;}
+        case 6: {current_sound = &tada;}
+      }
+      n=0;
+      complete = 0;
+      play = SOUND;
+      setupDAC();
+      setupTimer(current_sound->sample_rate);
+    }
+    else if(button==8){
+      f=0;
+      t=0;
+      n=0;
+      seconds = 0.5;
+      play = MELODY;
+      setupDAC();
+      setupTimer(SAMPLE_RATE);
+    }
+  }
 }
